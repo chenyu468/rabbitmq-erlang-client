@@ -75,6 +75,9 @@
 -export([info/2, info_keys/1, info_keys/0]).
 -export([socket_adapter_info/2]).
 
+-export([start/2,start2/1]).
+
+
 -define(DEFAULT_CONSUMER, {amqp_selective_consumer, []}).
 
 -define(PROTOCOL_SSL_PORT, (?PROTOCOL_PORT - 1)).
@@ -160,6 +163,37 @@ start(AmqpParams) ->
         end,
     {ok, _Sup, Connection} = amqp_sup:start_connection_sup(AmqpParams1),
     amqp_gen_connection:connect(Connection).
+
+start(Sup,AmqpParams) ->
+    ensure_started(),
+    AmqpParams1 =
+        case AmqpParams of
+            #amqp_params_network{port = undefined, ssl_options = none} ->
+                AmqpParams#amqp_params_network{port = ?PROTOCOL_PORT};
+            #amqp_params_network{port = undefined, ssl_options = _} ->
+                AmqpParams#amqp_params_network{port = ?PROTOCOL_SSL_PORT};
+            _ ->
+                AmqpParams
+        end,
+    {ok,_Sup,Connection} = supervisor2:start_child(Sup, [AmqpParams]),
+    amqp_gen_connection:connect(Connection).
+
+start2(AmqpParams) ->
+    ensure_started(),
+    AmqpParams1 =
+        case AmqpParams of
+            #amqp_params_network{port = undefined, ssl_options = none} ->
+                AmqpParams#amqp_params_network{port = ?PROTOCOL_PORT};
+            #amqp_params_network{port = undefined, ssl_options = _} ->
+                AmqpParams#amqp_params_network{port = ?PROTOCOL_SSL_PORT};
+            _ ->
+                AmqpParams
+        end,
+    %% {ok, _Sup, Connection} = amqp_sup:start_connection_sup(AmqpParams1),
+    %% {ok,Connection} = supervisor2:start_child(Sup, [AmqpParams]),
+    {ok,_Sup,Connection} = amqp_connection_sup:start_link(AmqpParams),
+    amqp_gen_connection:connect(Connection).
+
 
 %% Usually the amqp_client application will already be running. We
 %% check whether that is the case by invoking an undocumented function
